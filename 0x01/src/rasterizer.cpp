@@ -134,49 +134,51 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
 
 void rst::rasterizer::draw(rst::pos_buf_id pos_buffer, rst::ind_buf_id ind_buffer, rst::Primitive type)
 {
-    if (type != rst::Primitive::Triangle)
+    if (type != rst::Primitive::Triangle) // 首先检查是否只支持三角形，如果要绘制的不是三角形，则抛出一个错误。
     {
         throw std::runtime_error("Drawing primitives other than triangle is not implemented yet!");
     }
+    // 获取位置缓冲器和索引缓冲器的引用
     auto& buf = pos_buf[pos_buffer.pos_id];
     auto& ind = ind_buf[ind_buffer.ind_id];
-
+    // 设置投影参数，f1 和 f2 用于处理 z 轴方向上的深度变换
     float f1 = (100 - 0.1) / 2.0;
     float f2 = (100 + 0.1) / 2.0;
-
+    // 计算 MVP（模型-视图-投影）矩阵，用于将世界空间的顶点转换为剪裁空间
     Eigen::Matrix4f mvp = projection * view * model;
+    // 遍历索引缓冲区中的每个三角形
     for (auto& i : ind)
     {
         Triangle t;
-
+        // 将三角形的三个顶点从世界空间转换到剪裁空间
         Eigen::Vector4f v[] = {
                 mvp * to_vec4(buf[i[0]], 1.0f),
                 mvp * to_vec4(buf[i[1]], 1.0f),
                 mvp * to_vec4(buf[i[2]], 1.0f)
         };
-
+        // 归一化处理，将顶点坐标除以它们的 w 分量
         for (auto& vec : v) {
             vec /= vec.w();
         }
-
+        // 将归一化后的顶点转换到屏幕空间
         for (auto & vert : v)
         {
             vert.x() = 0.5*width*(vert.x()+1.0);
             vert.y() = 0.5*height*(vert.y()+1.0);
             vert.z() = vert.z() * f1 + f2;
         }
-
+        // 将处理后的顶点设置到三角形中
         for (int i = 0; i < 3; ++i)
         {
             t.setVertex(i, v[i].head<3>());
             t.setVertex(i, v[i].head<3>());
             t.setVertex(i, v[i].head<3>());
         }
-
+        // 设置三角形顶点的颜色
         t.setColor(0, 255.0,  0.0,  0.0);
         t.setColor(1, 0.0  ,255.0,  0.0);
         t.setColor(2, 0.0  ,  0.0,255.0);
-
+        // 光栅化三角形的线框
         rasterize_wireframe(t);
     }
 }
